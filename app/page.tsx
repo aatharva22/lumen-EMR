@@ -1,4 +1,6 @@
 import Image from "next/image";
+import {Card, CardHeader, CardDescription, CardTitle, CardAction} from "../components/ui/card"
+import {Button} from "../components/ui/button"
 
 export default function Home() {
   return (
@@ -33,6 +35,15 @@ export default function Home() {
             </a>{" "}
             center.
           </p>
+        </div>
+        <div>
+          <Card className="mx-auto w-full max-w-sm">
+            <CardHeader>
+    <CardTitle>lumen EMR</CardTitle>
+    <CardDescription>Card Description</CardDescription>
+    <CardAction>Card Action</CardAction>
+  </CardHeader>
+          </Card>
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           <a
