@@ -44,7 +44,7 @@ export async function apiClient<T = unknown>(
   // Handle errors
   if (!response.ok) {
     // If unauthorized, clear token and redirect
-    if (response.status === 401 && typeof window !== "undefined") {
+    if (response.status === 401 && !endpoint.includes("/auth/login") && typeof window !== "undefined") {
       localStorage.removeItem("token")
       window.location.href = "/login"
     }
