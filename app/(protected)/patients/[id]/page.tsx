@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import { apiClient } from "@/lib/api"
 import { PatientEverything } from "@/types"
+import AddResourceDialog from "@/components/AddResourceDialog"
 
 type Tab = "overview" | "summary" | "observations" | "medications" | "conditions"
 
@@ -15,6 +16,7 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState<Tab>("overview")
+  const [addingType, setAddingType] = useState<"observation" | "medication" | "condition" | null>(null)
 
   const [summary, setSummary] = useState<string>("")
   const [summaryLoading, setSummaryLoading] = useState(false)
@@ -26,6 +28,17 @@ export default function PatientDetailPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [patientId])
+
+  const refreshData = async () => {
+    try {
+      const fresh = await apiClient<PatientEverything>(
+        `/fhir/Patient/${patientId}/$everything`
+      )
+      setData(fresh)
+    } catch {
+      // silently fail
+    }
+  }
 
   const handleGenerateSummary = async () => {
     setSummaryError("")
@@ -251,114 +264,166 @@ export default function PatientDetailPage() {
         </div>
       )}
 
+      {/* Observations */}
       {activeTab === "observations" && (
-        <div className="space-y-6">
-          {observations.length === 0 ? (
-            <EmptyState label="No observations recorded." />
-          ) : (
-            observations.map((obs) => (
-              <div key={obs.id} className="border-b border-border pb-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-serif text-2xl text-foreground capitalize">
-                      {obs.code.replace(/-/g, " ")}
-                    </h3>
-                    <p
-                      className="font-serif text-xl mt-1"
-                      style={{ color: "var(--ink-soft)" }}
-                    >
-                      {obs.value} {obs.unit}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-mono-label text-muted-foreground block">
-                      {obs.status}
-                    </span>
-                    {obs.effective_date && (
-                      <span className="font-mono-label text-muted-foreground block mt-1">
-                        {new Date(obs.effective_date).toLocaleDateString()}
+        <div>
+          <div className="flex justify-between items-baseline mb-6">
+            <span className="font-mono-label text-muted-foreground">
+              {observations.length} recorded
+            </span>
+            <button
+              onClick={() => setAddingType("observation")}
+              className="font-mono-label text-muted-foreground hover:text-foreground transition-colors"
+            >
+              + Add observation
+            </button>
+          </div>
+          <div className="space-y-6">
+            {observations.length === 0 ? (
+              <EmptyState label="No observations recorded." />
+            ) : (
+              observations.map((obs) => (
+                <div key={obs.id} className="border-b border-border pb-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-serif text-2xl text-foreground capitalize">
+                        {obs.code.replace(/-/g, " ")}
+                      </h3>
+                      <p
+                        className="font-serif text-xl mt-1"
+                        style={{ color: "var(--ink-soft)" }}
+                      >
+                        {obs.value} {obs.unit}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono-label text-muted-foreground block">
+                        {obs.status}
                       </span>
-                    )}
+                      {obs.effective_date && (
+                        <span className="font-mono-label text-muted-foreground block mt-1">
+                          {new Date(obs.effective_date).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       )}
 
+      {/* Medications */}
       {activeTab === "medications" && (
-        <div className="space-y-6">
-          {medications.length === 0 ? (
-            <EmptyState label="No medications prescribed." />
-          ) : (
-            medications.map((med) => (
-              <div key={med.id} className="border-b border-border pb-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-serif text-2xl text-foreground">
-                      {med.medication_name}
-                    </h3>
-                    <p
-                      className="font-serif text-lg mt-1"
-                      style={{ color: "var(--ink-soft)" }}
-                    >
-                      {med.dosage} · {med.frequency}
-                    </p>
-                    {med.notes && (
+        <div>
+          <div className="flex justify-between items-baseline mb-6">
+            <span className="font-mono-label text-muted-foreground">
+              {medications.length} prescribed
+            </span>
+            <button
+              onClick={() => setAddingType("medication")}
+              className="font-mono-label text-muted-foreground hover:text-foreground transition-colors"
+            >
+              + Add medication
+            </button>
+          </div>
+          <div className="space-y-6">
+            {medications.length === 0 ? (
+              <EmptyState label="No medications prescribed." />
+            ) : (
+              medications.map((med) => (
+                <div key={med.id} className="border-b border-border pb-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-serif text-2xl text-foreground">
+                        {med.medication_name}
+                      </h3>
                       <p
-                        className="font-serif text-sm mt-2"
-                        style={{ color: "var(--ink-muted)" }}
+                        className="font-serif text-lg mt-1"
+                        style={{ color: "var(--ink-soft)" }}
                       >
-                        {med.notes}
+                        {med.dosage} · {med.frequency}
                       </p>
-                    )}
+                      {med.notes && (
+                        <p
+                          className="font-serif text-sm mt-2"
+                          style={{ color: "var(--ink-muted)" }}
+                        >
+                          {med.notes}
+                        </p>
+                      )}
+                    </div>
+                    <span className="font-mono-label text-muted-foreground">
+                      {med.status}
+                    </span>
                   </div>
-                  <span className="font-mono-label text-muted-foreground">
-                    {med.status}
-                  </span>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       )}
 
+      {/* Conditions */}
       {activeTab === "conditions" && (
-        <div className="space-y-6">
-          {conditions.length === 0 ? (
-            <EmptyState label="No conditions recorded." />
-          ) : (
-            conditions.map((cond) => (
-              <div key={cond.id} className="border-b border-border pb-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-serif text-2xl text-foreground">
-                      {cond.description}
-                    </h3>
-                    <p
-                      className="font-mono-label mt-2"
-                      style={{ color: "var(--ink-soft)" }}
-                    >
-                      ICD-10 · {cond.code}
-                    </p>
-                    {cond.notes && (
+        <div>
+          <div className="flex justify-between items-baseline mb-6">
+            <span className="font-mono-label text-muted-foreground">
+              {conditions.length} recorded
+            </span>
+            <button
+              onClick={() => setAddingType("condition")}
+              className="font-mono-label text-muted-foreground hover:text-foreground transition-colors"
+            >
+              + Add condition
+            </button>
+          </div>
+          <div className="space-y-6">
+            {conditions.length === 0 ? (
+              <EmptyState label="No conditions recorded." />
+            ) : (
+              conditions.map((cond) => (
+                <div key={cond.id} className="border-b border-border pb-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-serif text-2xl text-foreground">
+                        {cond.description}
+                      </h3>
                       <p
-                        className="font-serif text-sm mt-2"
-                        style={{ color: "var(--ink-muted)" }}
+                        className="font-mono-label mt-2"
+                        style={{ color: "var(--ink-soft)" }}
                       >
-                        {cond.notes}
+                        ICD-10 · {cond.code}
                       </p>
-                    )}
+                      {cond.notes && (
+                        <p
+                          className="font-serif text-sm mt-2"
+                          style={{ color: "var(--ink-muted)" }}
+                        >
+                          {cond.notes}
+                        </p>
+                      )}
+                    </div>
+                    <span className="font-mono-label text-muted-foreground">
+                      {cond.clinical_status}
+                    </span>
                   </div>
-                  <span className="font-mono-label text-muted-foreground">
-                    {cond.clinical_status}
-                  </span>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
+      )}
+
+      {/* Add Resource Dialog */}
+      {addingType && (
+        <AddResourceDialog
+          patientId={patientId}
+          type={addingType}
+          onClose={() => setAddingType(null)}
+          onSuccess={refreshData}
+        />
       )}
     </div>
   )

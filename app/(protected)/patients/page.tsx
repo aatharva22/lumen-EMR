@@ -26,21 +26,24 @@ export default function PatientsPage() {
   return (
     <div className="p-16 max-w-6xl">
       <div className="mb-16 flex justify-between items-start">
-        <div>
-          <span className="font-mono-label text-muted-foreground block mb-4">
-            Patients
-          </span>
-          <h1 className="font-serif text-5xl text-foreground mb-2">
-            All patients
-          </h1>
-          <p
-            className="font-serif text-lg"
-            style={{ color: "var(--ink-soft)" }}
-          >
-            {loading ? "Loading..." : `${filteredPatients.length} records`}
-          </p>
-        </div>
-      </div>
+  <div>
+    <span className="font-mono-label text-muted-foreground block mb-4">
+      Patients
+    </span>
+    <h1 className="font-serif text-5xl text-foreground mb-2">
+      All patients
+    </h1>
+    <p className="font-serif text-lg" style={{ color: "var(--ink-soft)" }}>
+      {loading ? "Loading..." : `${filteredPatients.length} records`}
+    </p>
+  </div>
+  <Link
+    href="/patients/new"
+    className="px-6 py-3 bg-foreground text-background text-sm tracking-[0.15em] uppercase font-mono hover:opacity-90 transition-opacity"
+  >
+    + New patient
+  </Link>
+</div>
 
       <div className="mb-8 border-b border-border pb-4">
         <input
