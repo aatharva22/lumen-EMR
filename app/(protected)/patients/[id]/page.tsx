@@ -6,7 +6,7 @@ import Link from "next/link"
 import { apiClient } from "@/lib/api"
 import { PatientEverything } from "@/types"
 
-type Tab = "overview" | "observations" | "medications" | "conditions"
+type Tab = "overview" | "summary" | "observations" | "medications" | "conditions"
 
 export default function PatientDetailPage() {
   const params = useParams()
@@ -16,12 +16,33 @@ export default function PatientDetailPage() {
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState<Tab>("overview")
 
+  const [summary, setSummary] = useState<string>("")
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState("")
+
   useEffect(() => {
     apiClient<PatientEverything>(`/fhir/Patient/${patientId}/$everything`)
       .then((d) => setData(d))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [patientId])
+
+  const handleGenerateSummary = async () => {
+    setSummaryError("")
+    setSummary("")
+    setSummaryLoading(true)
+    try {
+      const result = await apiClient<{ summary: string }>(
+        `/ai/summarize/${patientId}`,
+        { method: "POST" }
+      )
+      setSummary(result.summary)
+    } catch (err) {
+      setSummaryError(err instanceof Error ? err.message : "Summary failed")
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -52,6 +73,7 @@ export default function PatientDetailPage() {
 
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: "overview", label: "Overview", count: 0 },
+    { id: "summary", label: "AI Summary", count: 0 },
     { id: "observations", label: "Observations", count: observations.length },
     { id: "medications", label: "Medications", count: medications.length },
     { id: "conditions", label: "Conditions", count: conditions.length },
@@ -128,13 +150,105 @@ export default function PatientDetailPage() {
         </nav>
       </div>
 
-      {/* Tab content */}
+      {/* Overview */}
       {activeTab === "overview" && (
-        <OverviewTab
-          observationCount={observations.length}
-          medicationCount={medications.length}
-          conditionCount={conditions.length}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="border-t border-foreground pt-6">
+            <span className="font-mono-label text-muted-foreground block mb-4">
+              Observations
+            </span>
+            <span className="font-serif text-5xl text-foreground">
+              {observations.length}
+            </span>
+          </div>
+          <div className="border-t border-foreground pt-6">
+            <span className="font-mono-label text-muted-foreground block mb-4">
+              Medications
+            </span>
+            <span className="font-serif text-5xl text-foreground">
+              {medications.length}
+            </span>
+          </div>
+          <div className="border-t border-foreground pt-6">
+            <span className="font-mono-label text-muted-foreground block mb-4">
+              Conditions
+            </span>
+            <span className="font-serif text-5xl text-foreground">
+              {conditions.length}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* AI Summary */}
+      {activeTab === "summary" && (
+        <div>
+          {!summary && !summaryLoading && (
+            <div className="text-center py-12">
+              <p
+                className="font-serif text-xl mb-8"
+                style={{ color: "var(--ink-soft)" }}
+              >
+                Generate an AI clinical summary of this patient&apos;s complete
+                history using Llama 3.3 70B.
+              </p>
+              <button
+                onClick={handleGenerateSummary}
+                className="px-8 py-4 bg-foreground text-background text-sm tracking-[0.15em] uppercase font-mono hover:opacity-90 transition-opacity"
+              >
+                Generate summary →
+              </button>
+            </div>
+          )}
+
+          {summaryLoading && (
+            <div className="space-y-3">
+              <div className="h-6 bg-muted animate-pulse" />
+              <div className="h-6 bg-muted animate-pulse w-11/12" />
+              <div className="h-6 bg-muted animate-pulse w-4/5" />
+              <div className="h-6 bg-muted animate-pulse w-full" />
+              <p className="font-mono-label text-muted-foreground text-center mt-8">
+                Analyzing patient data...
+              </p>
+            </div>
+          )}
+
+          {summaryError && (
+            <div
+              className="p-4 text-sm border border-accent font-serif"
+              style={{ color: "var(--accent)" }}
+            >
+              {summaryError}
+            </div>
+          )}
+
+          {summary && !summaryLoading && (
+            <div>
+              <div className="flex justify-between items-baseline mb-6">
+                <span className="font-mono-label text-muted-foreground">
+                  Generated summary
+                </span>
+                <button
+                  onClick={handleGenerateSummary}
+                  className="font-mono-label text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Regenerate →
+                </button>
+              </div>
+              <div
+                className="font-serif text-lg leading-relaxed space-y-4 max-w-3xl"
+                style={{ color: "var(--ink-soft)" }}
+              >
+                {summary.split("\n\n").map((paragraph, i) => (
+                  <p key={i}>{paragraph}</p>
+                ))}
+              </div>
+              <p className="font-mono-label mt-8 text-muted-foreground">
+                AI-generated · Review before clinical use
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {activeTab === "observations" && (
@@ -250,52 +364,10 @@ export default function PatientDetailPage() {
   )
 }
 
-function OverviewTab({
-  observationCount,
-  medicationCount,
-  conditionCount,
-}: {
-  observationCount: number
-  medicationCount: number
-  conditionCount: number
-}) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-      <div className="border-t border-foreground pt-6">
-        <span className="font-mono-label text-muted-foreground block mb-4">
-          Observations
-        </span>
-        <span className="font-serif text-5xl text-foreground">
-          {observationCount}
-        </span>
-      </div>
-      <div className="border-t border-foreground pt-6">
-        <span className="font-mono-label text-muted-foreground block mb-4">
-          Medications
-        </span>
-        <span className="font-serif text-5xl text-foreground">
-          {medicationCount}
-        </span>
-      </div>
-      <div className="border-t border-foreground pt-6">
-        <span className="font-mono-label text-muted-foreground block mb-4">
-          Conditions
-        </span>
-        <span className="font-serif text-5xl text-foreground">
-          {conditionCount}
-        </span>
-      </div>
-    </div>
-  )
-}
-
 function EmptyState({ label }: { label: string }) {
   return (
     <div className="py-24 text-center">
-      <p
-        className="font-serif text-xl"
-        style={{ color: "var(--ink-soft)" }}
-      >
+      <p className="font-serif text-xl" style={{ color: "var(--ink-soft)" }}>
         {label}
       </p>
     </div>
